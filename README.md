@@ -7,7 +7,7 @@ Useful for repeatable scene edits, batch spawning, importing assets straight off
 from a script. Every command is deterministic (no AI) and every edit is **undoable** in the editor.
 
 ```console
-$ node dist/cli.js pair ABCDE-FGHIJ
+node dist/cli.js pair ABCDE-FGHIJ
 paired ✓  — same commands as the editor Terminal ("help"). Ctrl-D to quit.
 galatrix> spawn box Wall 0 1 0
 galatrix> tag Wall goal
@@ -44,7 +44,8 @@ You land at a `galatrix>` prompt. `Ctrl-D` to quit.
 node dist/cli.js pair ABCDE-FGHIJ "spawn box Wall 0 1 0 ; tag Wall goal"
 ```
 
-**Server** — defaults to `$GALATRIX_SERVER`, or `http://localhost:4005` if that's unset. For a hosted editor:
+**Server** — defaults to the `GALATRIX_SERVER` environment variable, or `http://localhost:4005` if that's
+unset. For a hosted editor:
 
 ```bash
 node dist/cli.js pair ABCDE-FGHIJ --server https://editor-api.galatrix.com
