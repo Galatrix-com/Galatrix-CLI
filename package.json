@@ -1,0 +1,27 @@
+{
+  "name": "@galatrix/cli",
+  "version": "0.0.1",
+  "description": "Drive a running Galatrix editor from your terminal.",
+  "type": "module",
+  "bin": {
+    "galatrix": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "dev": "tsx src/cli.ts"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/ws": "^8.5.12",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}
