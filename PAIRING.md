@@ -4,8 +4,9 @@ Drive your running editor from a terminal. One-time code, same machine, time-box
 
 ## 1. In the editor
 
-**Settings → Expose to CLI → set Window (minutes) → Start.** Copy the one-time code (e.g. `ABCDE-FGHIJ`).
-Keep the editor tab open.
+**Settings → Expose to CLI → set Window (minutes) → Start.** Copy the code (e.g. `ABCDE-FGHIJ`).
+The window now stays open for the whole duration you picked — backgrounding the editor tab is fine
+(commands need the editor reachable, so if a command says the editor is not connected, focus its tab).
 
 ## 2. In a terminal (same machine as the editor)
 
@@ -28,10 +29,11 @@ Server defaults to `http://localhost:4005` (your local editor-server). Hosted ed
 
 ## Good to know
 
-- **Single-use code.** Each Start makes ONE code for ONE pairing. Used it? Click **Start** again for a fresh one.
-- **The window ends when the CLI disconnects** — closing the REPL, or a one-shot finishing. It also ends after
-  15 min idle or at the Window (minutes) max. Then the editor panel returns to **Start**; re-Start to pair again.
+- **The code lasts the whole window.** One CLI at a time may attach, but the same code re-pairs after a
+  drop — close the REPL, come back later, `galatrix pair` again with the same code until the window ends.
+- **The window ends only when its duration elapses or you click Stop** in the editor panel. Reloading or
+  backgrounding the editor tab does not end it — a returning editor reattaches automatically.
 - **Same machine only.** The CLI must run from the same IP as the editor (`localhost` ↔ `localhost`).
   `your IP does not match the editor` → run it on the same box.
-- **Scene edits + reads only** over the bridge — `spawn`/`move`/`set`/`run <json>`/`scene`/… work; `ai`, `save`,
-  and publish stay in the editor by design.
+- **No AI over the bridge** — scene edits + reads, `save` (the local autosave) and `publish` work;
+  `ai` stays in the editor by design.

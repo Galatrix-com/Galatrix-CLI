@@ -22,9 +22,22 @@ export function connect(serverUrl: string, code: string): Promise<CliSession> {
     let ws: WebSocket
     try { ws = new WebSocket(wsUrl) } catch (e) { reject(e); return }
     let paired = false
+    let ended = false // a relay 'closed' (with its reason) beats the raw socket close that follows it
     let nextId = 1
     const pending = new Map<number, (lines: ResultLine[]) => void>()
     const closedCbs: Array<(reason: string) => void> = []
+    // Keepalive: a little traffic keeps NATs/proxies from idling the socket out, and a send failure
+    // surfaces a dead connection promptly instead of on the user's next command.
+    const hb = setInterval(() => { if (ws.readyState === ws.OPEN) { try { ws.send(JSON.stringify({ type: 'ping' })) } catch { /* close handler reports */ } } }, 25_000)
+    const end = (reason: string) => {
+      if (ended) return
+      ended = true
+      clearInterval(hb)
+      // Flush in-flight sends so an awaited command never hangs on a dead socket.
+      for (const [, res] of pending) res([{ kind: 'err', text: `connection lost before a result arrived (${reason})` }])
+      pending.clear()
+      for (const cb of closedCbs) cb(reason)
+    }
 
     ws.on('open', () => ws.send(JSON.stringify({ type: 'hello-cli', code })))
     ws.on('message', (raw) => {
@@ -35,7 +48,7 @@ export function connect(serverUrl: string, code: string): Promise<CliSession> {
           paired = true
           resolve({
             send: (line) => new Promise((res) => { const id = nextId++; pending.set(id, res); ws.send(JSON.stringify({ type: 'cmd', id, line })) }),
-            close: () => ws.close(),
+            close: () => { ended = true; clearInterval(hb); ws.close() },
             onClosed: (cb) => closedCbs.push(cb),
           })
           break
@@ -45,7 +58,7 @@ export function connect(serverUrl: string, code: string): Promise<CliSession> {
           break
         }
         case 'closed':
-          for (const cb of closedCbs) cb(String(m.reason ?? 'closed'))
+          end(String(m.reason ?? 'closed'))
           ws.close()
           break
         case 'error':
@@ -54,14 +67,20 @@ export function connect(serverUrl: string, code: string): Promise<CliSession> {
       }
     })
     ws.on('error', (e) => { if (!paired) reject(e instanceof Error ? e : new Error(String(e))) })
-    ws.on('close', () => { if (!paired) reject(new Error('connection closed before pairing')) })
+    ws.on('close', () => {
+      clearInterval(hb)
+      if (!paired) { reject(new Error('connection closed before pairing')); return }
+      // A raw drop (relay restart, network) — the WINDOW usually survives it, so say how to get back in.
+      end('connection lost — your code stays valid for the window; re-run: galatrix pair ' + code)
+    })
   })
 }
 
 function explain(code: string): string {
   switch (code) {
-    case 'bad_code': return 'the code was not recognized (already used, or wrong)'
-    case 'code_expired': return 'the code has expired — generate a new one in the editor'
+    case 'bad_code': return 'the code was not recognized (window closed, or wrong code)'
+    case 'session_expired': return 'the window has ended — Start a new one in the editor (Settings → Expose to CLI)'
+    case 'already_paired': return 'another CLI is already attached to this window — close it first (one at a time)'
     case 'ip_mismatch': return 'your IP does not match the editor — run the CLI on the same machine/network'
     case 'rate_limited': return 'too many attempts — wait a minute and try again'
     case 'cli_must_not_be_browser': return 'this endpoint refused a browser-style connection'
