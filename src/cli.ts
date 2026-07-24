@@ -96,7 +96,22 @@ async function main() {
   try { session = await connect(server, code) } catch (e) { console.error('pairing failed:', e instanceof Error ? e.message : String(e)); process.exit(1) }
 
   if (oneShot) {
-    try { print(await session.send(expandImport(oneShot))) } catch (e) { console.error(e instanceof Error ? e.message : String(e)) }
+    // A one-shot is a SCRIPTED call, so its exit status has to mean something: without this a failed command
+    // still exited 0, silently continuing `galatrix pair … "…" && next-step` and passing CI steps that had
+    // actually failed. Two failure shapes count: expandImport throwing here (unreadable path / unknown type /
+    // over the size cap) and the editor answering with `err` lines (unknown command, bad args, and the
+    // "connection lost before a result arrived" line the transport synthesises on a dropped socket).
+    let failed = false
+    try {
+      const lines = await session.send(expandImport(oneShot))
+      print(lines)
+      failed = lines.some((l) => l.kind === 'err')
+    } catch (e) {
+      console.error(e instanceof Error ? e.message : String(e))
+      failed = true
+    }
+    // exitCode rather than exit() — let Node drain, so buffered stdout isn't truncated when piped.
+    process.exitCode = failed ? 1 : 0
     session.close(); return
   }
 

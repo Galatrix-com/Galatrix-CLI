@@ -19,11 +19,12 @@ galatrix> scene
 Needs [Node](https://nodejs.org). From the repo root:
 
 ```bash
-pnpm install
-pnpm --filter @galatrix/cli build   # → dist/cli.js
+npm install
+npm run build   # → dist/cli.js
+npm link        # optional: exposes a global `galatrix` command anywhere
 ```
 
-The package has no workspace dependencies (only `ws`), so it builds on its own.
+The only runtime dependency is `ws`, so it builds on its own.
 
 ## Pair
 
@@ -81,13 +82,30 @@ console errors                   # …then read runtime script errors
 Models, textures, audio, fonts, scripts, data (`.json`) and shaders are recognised; keep files under ~700 KB
 (the relay caps a message at 1 MB).
 
+## Exit status
+
+A **one-shot** run reports success through its exit code, so it composes with `&&`, `set -e` and CI steps:
+
+| Code | Meaning |
+|---|---|
+| `0` | the command ran and the editor reported no error |
+| `1` | the command failed — the editor returned an error, the local file in an `import` couldn't be used, the pairing code was rejected, or the arguments were wrong |
+
+```bash
+galatrix pair ABCDE-FGHIJ "spawn box Wall 0 1 0" && echo "only runs if the spawn worked"
+```
+
+The interactive prompt always exits `0` — quitting a REPL isn't a failure.
+
 ## How it works & limits
 
-Pairing redeems a **short-lived, single-use code** over a WebSocket relay. The CLI:
+Pairing redeems a **code** over a WebSocket relay. The code works for the whole Window you chose — it's
+**reusable** within that window, not single-use. The CLI:
 
-- must run from the **same IP** as the editor (`localhost` ↔ `localhost`),
-- holds **one** session at a time (a second CLI is refused with `already_paired`),
-- expires after your chosen Window (or 15 min idle), on **Stop**, or when the editor tab closes,
+- must connect from the **same IP** as the editor browser tab (your own machine),
+- holds **one** session at a time (a second CLI is refused with `already_paired` — disconnect the first),
+- stays valid until the **Window** runs out or you press **Stop**; the editor tab reloading, being
+  backgrounded, or briefly closing does **not** end it (a returning editor picks the session back up),
 - **stores nothing** — the ephemeral code lives only for this process.
 
 Everything the editor Terminal does works over the bridge — scene edits, reads, `save` (the local IndexedDB
